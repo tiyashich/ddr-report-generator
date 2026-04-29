@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -476,12 +477,42 @@ if "report" in st.session_state:
             metric_col_2.metric("Max Hotspot", f"{thermal_df['Hotspot'].max():.1f} deg C")
             metric_col_3.metric("Max Delta", f"{thermal_df['Delta'].max():.1f} deg C")
 
-            chart_df = thermal_df.set_index("Page")[["Hotspot", "Coldspot"]]
+            trend_df = thermal_df.melt(
+                id_vars=["Page"],
+                value_vars=["Hotspot", "Coldspot"],
+                var_name="Reading Type",
+                value_name="Temperature (deg C)",
+            )
             st.markdown('<div class="ddr-section-title">Hotspot vs Coldspot Trend</div>', unsafe_allow_html=True)
-            st.line_chart(chart_df)
+            trend_chart = (
+                alt.Chart(trend_df)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X("Page:O", title="Thermal record page"),
+                    y=alt.Y("Temperature (deg C):Q", title="Temperature (deg C)"),
+                    color=alt.Color(
+                        "Reading Type:N",
+                        title="Legend",
+                        scale=alt.Scale(domain=["Hotspot", "Coldspot"], range=["#d97706", "#2563eb"]),
+                    ),
+                    tooltip=["Page:O", "Reading Type:N", alt.Tooltip("Temperature (deg C):Q", format=".1f")],
+                )
+                .properties(height=360)
+            )
+            st.altair_chart(trend_chart, use_container_width=True)
 
             st.markdown('<div class="ddr-section-title">Temperature Difference by Thermal Record</div>', unsafe_allow_html=True)
-            st.bar_chart(thermal_df.set_index("Page")["Delta"])
+            delta_chart = (
+                alt.Chart(thermal_df)
+                .mark_bar(color="#0f766e")
+                .encode(
+                    x=alt.X("Page:O", title="Thermal record page"),
+                    y=alt.Y("Delta:Q", title="Hotspot minus coldspot (deg C)"),
+                    tooltip=["Page:O", "Thermal Image:N", alt.Tooltip("Delta:Q", format=".1f")],
+                )
+                .properties(height=320)
+            )
+            st.altair_chart(delta_chart, use_container_width=True)
 
             st.markdown('<div class="ddr-section-title">Thermal Reading Table</div>', unsafe_allow_html=True)
             st.dataframe(thermal_df, use_container_width=True, hide_index=True)

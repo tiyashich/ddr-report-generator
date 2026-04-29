@@ -146,6 +146,49 @@ st.markdown(
         font-size: 0.9rem;
     }
 
+    .ddr-flow {
+        border: 1px solid var(--ddr-line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 1rem;
+        margin: 1rem 0 0.4rem 0;
+    }
+
+    .ddr-flow-title {
+        color: var(--ddr-ink);
+        font-size: 1rem;
+        font-weight: 750;
+        margin-bottom: 0.55rem;
+    }
+
+    .ddr-flow-steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .ddr-flow-step {
+        border-left: 3px solid var(--ddr-accent);
+        background: var(--ddr-panel);
+        border-radius: 6px;
+        padding: 0.7rem 0.8rem;
+        color: var(--ddr-muted);
+        font-size: 0.9rem;
+    }
+
+    .ddr-flow-step strong {
+        display: block;
+        color: var(--ddr-ink);
+        margin-bottom: 0.15rem;
+    }
+
+    .ddr-watermark {
+        color: #72818c;
+        font-size: 0.82rem;
+        text-align: right;
+        margin: 0.6rem 0 1rem 0;
+    }
+
     .ddr-section-title {
         color: var(--ddr-ink);
         font-size: 1.05rem;
@@ -332,6 +375,22 @@ with status_col_3:
         """<div class="ddr-status"><strong>Report Structure</strong><span>Summary, observations, root cause, severity, actions, and missing data</span></div>""",
         unsafe_allow_html=True,
     )
+
+st.markdown('<div class="ddr-watermark">Prepared by Tiyas</div>', unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <div class="ddr-flow">
+        <div class="ddr-flow-title">How it works</div>
+        <div class="ddr-flow-steps">
+            <div class="ddr-flow-step"><strong>1. Upload PDFs</strong>Inspection and thermal reports are provided as source documents.</div>
+            <div class="ddr-flow-step"><strong>2. Extract evidence</strong>Text, thermal readings, and embedded images are extracted and organized.</div>
+            <div class="ddr-flow-step"><strong>3. Generate DDR</strong>Groq writes the client-ready report, with a rule-based fallback if the model is unavailable.</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.sidebar:
     st.header("Settings")

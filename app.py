@@ -86,15 +86,16 @@ st.markdown(
     }
 
     .ddr-title {
-        color: #ffffff;
+        color: #f6b33f;
         font-size: 2.25rem;
         line-height: 1.12;
         font-weight: 760;
         margin: 0;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
     }
 
     .ddr-subtitle {
-        color: #d7e0e6;
+        color: #edf4f7;
         font-size: 1.02rem;
         max-width: 760px;
         margin-top: 0.65rem;

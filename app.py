@@ -29,6 +29,19 @@ def make_zip(output_dir: Path) -> Path:
     return Path(zip_path)
 
 
+def collect_images(output_dir: Path) -> list[dict[str, object]]:
+    images = []
+    image_root = output_dir / "images"
+    for image_path in sorted(image_root.rglob("*.png")):
+        images.append(
+            {
+                "name": str(image_path.relative_to(output_dir)),
+                "bytes": image_path.read_bytes(),
+            }
+        )
+    return images
+
+
 def configure_api_key() -> None:
     try:
         api_key = st.secrets.get("OPENAI_API_KEY", None)
@@ -98,14 +111,32 @@ if st.button("Generate DDR", type="primary", disabled=not inspection_upload or n
             st.session_state["report"] = read_text(report_path)
             st.session_state["prompt"] = read_text(prompt_path)
             st.session_state["zip_bytes"] = zip_path.read_bytes()
+            st.session_state["images"] = collect_images(output_dir)
 
 if "report" in st.session_state:
     st.success("DDR output generated.")
 
-    tab_report, tab_prompt, tab_download = st.tabs(["Report", "Prompt", "Download"])
+    tab_report, tab_images, tab_prompt, tab_download = st.tabs(["Report", "Evidence Images", "Prompt", "Download"])
 
     with tab_report:
         st.markdown(st.session_state["report"])
+        if st.session_state.get("images"):
+            st.divider()
+            st.subheader("Evidence Images")
+            st.caption("Images are extracted from the uploaded PDFs and included in the output ZIP.")
+            for image in st.session_state["images"][:12]:
+                st.image(image["bytes"], caption=image["name"], use_container_width=True)
+
+    with tab_images:
+        images = st.session_state.get("images", [])
+        if not images:
+            st.warning("Image Not Available")
+        else:
+            st.caption(f"{len(images)} extracted images. Download the ZIP to access all image files.")
+            columns = st.columns(3)
+            for index, image in enumerate(images):
+                with columns[index % 3]:
+                    st.image(image["bytes"], caption=image["name"], use_container_width=True)
 
     with tab_prompt:
         st.text_area("LLM prompt", st.session_state["prompt"], height=420)

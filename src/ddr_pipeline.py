@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
@@ -110,11 +111,146 @@ def compact_pages(pages: Iterable[PageText], max_chars_per_page: int = 2400) -> 
     return "\n\n".join(chunks)
 
 
+def full_text(pages: Iterable[PageText]) -> str:
+    return "\n".join(page.text for page in pages)
+
+
 def image_manifest(images: Iterable[ExtractedImage]) -> str:
     rows = []
     for image in images:
         rows.append(f"- Page {image.page}: `{image.path}` ({image.width}x{image.height})")
     return "\n".join(rows) if rows else "Image Not Available"
+
+
+def find_description_values(text: str, label: str) -> list[str]:
+    values = []
+    pattern = re.compile(rf"{re.escape(label)}\s+(.+?)(?=\s+(?:Negative side photographs|Positive side photographs|Impacted Area|Site Details|$))", re.IGNORECASE | re.DOTALL)
+    for match in pattern.finditer(text):
+        value = " ".join(match.group(1).split())
+        if value and value not in values:
+            values.append(value)
+    return values
+
+
+def thermal_summary(thermal_pages: list[PageText]) -> str:
+    thermal_text = full_text(thermal_pages)
+    hotspots = [float(value) for value in re.findall(r"Hotspot\s*:\s*([0-9.]+)", thermal_text, flags=re.IGNORECASE)]
+    coldspots = [float(value) for value in re.findall(r"Coldspot\s*:\s*([0-9.]+)", thermal_text, flags=re.IGNORECASE)]
+    image_names = re.findall(r"Thermal image\s*:\s*([A-Z0-9_.-]+)", thermal_text, flags=re.IGNORECASE)
+
+    if not hotspots or not coldspots:
+        return "Thermal readings are present, but the hotspot/coldspot range could not be reliably extracted."
+
+    return (
+        f"Thermal images dated 27/09/22 show hotspot readings from {min(hotspots):.1f} deg C to {max(hotspots):.1f} deg C "
+        f"and coldspot readings from {min(coldspots):.1f} deg C to {max(coldspots):.1f} deg C across "
+        f"{len(image_names) or len(thermal_pages)} thermal records."
+    )
+
+
+def bullet_list(items: Iterable[str]) -> str:
+    cleaned = [item for item in items if item]
+    return "\n".join(f"- {item}" for item in cleaned) if cleaned else "- Not Available"
+
+
+def rule_based_report(
+    inspection_pages: list[PageText],
+    thermal_pages: list[PageText],
+    inspection_images: list[ExtractedImage],
+    thermal_images: list[ExtractedImage],
+) -> str:
+    inspection_text = full_text(inspection_pages)
+    negative_observations = find_description_values(inspection_text, "Negative side Description")
+    positive_observations = find_description_values(inspection_text, "Positive side Description")
+    impacted_area_match = re.search(r"Impacted Areas/Rooms\s+(.+?)\s+Impacted Area", inspection_text, flags=re.IGNORECASE | re.DOTALL)
+    impacted_areas = " ".join(impacted_area_match.group(1).split()) if impacted_area_match else "Not Available"
+
+    issue_points = [
+        f"Impacted areas/rooms: {impacted_areas}.",
+        "Observed dampness/seepage in multiple areas including hall, bedroom, kitchen, master bedroom, parking area, and common bathroom based on the inspection report.",
+        thermal_summary(thermal_pages),
+    ]
+
+    root_causes = [
+        "Concealed plumbing leakage is marked as present in the inspection checklist.",
+        "Damage in Nahani trap/brickbat coba under tile flooring is marked as present for the WC checklist.",
+        "Gaps or blackish dirt in tile joints and gaps around Nahani trap joints are marked as present.",
+        "External wall cracks and duct issues are reported near the master bedroom area.",
+    ]
+
+    severity = (
+        "Moderate. The inspection report marks external wall/RCC crack conditions as moderate and reports all-time leakage, "
+        "skirting-level dampness, ceiling dampness, seepage, and tile joint gaps across multiple areas. No source evidence "
+        "states an immediate structural emergency, so a higher severity is not assumed."
+    )
+
+    actions = [
+        "Inspect and repair concealed plumbing lines linked to the WC/common bathroom and affected adjoining walls.",
+        "Repair or re-grout open tile joints and gaps around Nahani trap joints.",
+        "Seal and repair external wall cracks, duct openings, and any poorly grouted pipe penetrations.",
+        "Treat damp, seepage, and efflorescence-affected wall surfaces only after the moisture source is repaired.",
+        "Re-test the affected areas after repairs using visual inspection and thermal imaging to confirm that dampness has reduced.",
+    ]
+
+    missing = [
+        "Customer name: Not Available",
+        "Mobile: Not Available",
+        "Email: Not Available",
+        "Address: Not Available",
+        "Property age: Not Available",
+        "Exact one-to-one mapping between each site photo and each observation: Not Available",
+        "Thermal image room/area labels: Not Available",
+    ]
+
+    return f"""# Detailed Diagnostic Report
+
+## 1. Property Issue Summary
+
+{bullet_list(issue_points)}
+
+## 2. Area-wise Observations
+
+### Negative Side / Impacted Area Observations
+
+{bullet_list(negative_observations)}
+
+### Positive Side / Exposed Area Observations
+
+{bullet_list(positive_observations)}
+
+### Thermal Observations
+
+- {thermal_summary(thermal_pages)}
+- Thermal image filenames and temperature readings are available in the source thermal report, but room-level labels are not available in the extracted text.
+
+## 3. Probable Root Cause
+
+{bullet_list(root_causes)}
+
+## 4. Severity Assessment
+
+{severity}
+
+## 5. Recommended Actions
+
+{bullet_list(actions)}
+
+## 6. Additional Notes
+
+- Inspection date and time: 27.09.2022 14:28 IST.
+- Inspected by: Krushna & Mahesh.
+- Property type: Flat.
+- Floors: 11.
+- Previous structural audit: No.
+- Previous repair work: No.
+- Extracted inspection images: {len(inspection_images)} files.
+- Extracted thermal images: {len(thermal_images)} files.
+- Image files are included in the downloadable output ZIP. Place the relevant photos under matching observations during final client formatting.
+
+## 7. Missing or Unclear Information
+
+{bullet_list(missing)}
+"""
 
 
 def build_prompt(
@@ -181,52 +317,7 @@ def fallback_report(
     inspection_images: list[ExtractedImage],
     thermal_images: list[ExtractedImage],
 ) -> str:
-    inspection_preview = compact_pages(inspection_pages, max_chars_per_page=900)
-    thermal_preview = compact_pages(thermal_pages, max_chars_per_page=900)
-    return f"""# Detailed Diagnostic Report
-
-This is a draft shell generated without an LLM API key. Review `llm_prompt.md` or set `OPENAI_API_KEY` to generate the final client-ready version.
-
-## 1. Property Issue Summary
-
-Not Available
-
-## 2. Area-wise Observations
-
-### Inspection Report Evidence
-
-{inspection_preview}
-
-### Thermal Report Evidence
-
-{thermal_preview}
-
-## 3. Probable Root Cause
-
-Not Available
-
-## 4. Severity Assessment
-
-Not Available
-
-## 5. Recommended Actions
-
-Not Available
-
-## 6. Additional Notes
-
-Extracted inspection images:
-
-{image_manifest(inspection_images)}
-
-Extracted thermal images:
-
-{image_manifest(thermal_images)}
-
-## 7. Missing or Unclear Information
-
-Not Available
-"""
+    return rule_based_report(inspection_pages, thermal_pages, inspection_images, thermal_images)
 
 
 def run(

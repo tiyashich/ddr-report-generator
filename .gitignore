@@ -3,5 +3,6 @@ __pycache__/
 .env
 outputs/
 test_outputs/
+test_outputs*/
 *.pdf
 *.pyc

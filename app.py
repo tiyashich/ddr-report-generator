@@ -13,6 +13,134 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown(
+    """
+    <style>
+    :root {
+        --ddr-ink: #17212b;
+        --ddr-muted: #5c6975;
+        --ddr-line: #dbe3ea;
+        --ddr-panel: #f7fafc;
+        --ddr-accent: #0f766e;
+        --ddr-accent-2: #365f8c;
+    }
+
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1180px;
+    }
+
+    h1, h2, h3 {
+        color: var(--ddr-ink);
+        letter-spacing: 0;
+    }
+
+    .ddr-hero {
+        border-bottom: 1px solid var(--ddr-line);
+        padding: 0 0 1.2rem 0;
+        margin-bottom: 1.2rem;
+    }
+
+    .ddr-kicker {
+        color: var(--ddr-accent);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+
+    .ddr-title {
+        color: var(--ddr-ink);
+        font-size: 2.25rem;
+        line-height: 1.12;
+        font-weight: 760;
+        margin: 0;
+    }
+
+    .ddr-subtitle {
+        color: var(--ddr-muted);
+        font-size: 1.02rem;
+        max-width: 760px;
+        margin-top: 0.65rem;
+    }
+
+    .ddr-status {
+        border: 1px solid var(--ddr-line);
+        border-left: 4px solid var(--ddr-accent);
+        background: var(--ddr-panel);
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        min-height: 86px;
+    }
+
+    .ddr-status strong {
+        display: block;
+        color: var(--ddr-ink);
+        font-size: 0.95rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .ddr-status span {
+        color: var(--ddr-muted);
+        font-size: 0.9rem;
+    }
+
+    .ddr-section-title {
+        color: var(--ddr-ink);
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 1.2rem 0 0.25rem 0;
+    }
+
+    div[data-testid="stFileUploader"] {
+        border: 1px solid var(--ddr-line);
+        border-radius: 8px;
+        padding: 0.7rem 0.8rem 0.25rem 0.8rem;
+        background: #ffffff;
+    }
+
+    div[data-testid="stFileUploader"] label {
+        font-weight: 700;
+        color: var(--ddr-ink);
+    }
+
+    .stButton > button {
+        min-height: 2.85rem;
+        border-radius: 8px;
+        font-weight: 700;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.35rem;
+        border-bottom: 1px solid var(--ddr-line);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px 8px 0 0;
+        padding: 0.7rem 1rem;
+    }
+
+    .stDownloadButton > button {
+        border-radius: 8px;
+        min-height: 2.8rem;
+    }
+
+    [data-testid="stSidebar"] {
+        background: #f4f7fa;
+        border-right: 1px solid var(--ddr-line);
+    }
+
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: var(--ddr-ink);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 def save_upload(uploaded_file, destination: Path) -> Path:
     destination.write_bytes(uploaded_file.getbuffer())
@@ -69,26 +197,81 @@ def configure_api_key() -> None:
 
 configure_api_key()
 
-st.title("DDR Report Generator")
-st.caption("Upload an inspection report and thermal report to generate a structured Detailed Diagnostic Report.")
+has_groq_key = bool(os.getenv("GROQ_API_KEY"))
+has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
+
+if has_groq_key:
+    llm_status = "Groq generation enabled"
+    llm_detail = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+elif has_openai_key:
+    llm_status = "OpenAI generation enabled"
+    llm_detail = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+else:
+    llm_status = "Rule-based mode"
+    llm_detail = "Add Groq or OpenAI secrets for model-written output"
+
+st.markdown(
+    """
+    <div class="ddr-hero">
+        <div class="ddr-kicker">Applied AI Builder</div>
+        <h1 class="ddr-title">DDR Report Generator</h1>
+        <div class="ddr-subtitle">
+            Convert an inspection PDF and a thermal PDF into a structured Detailed Diagnostic Report with extracted evidence.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+status_col_1, status_col_2, status_col_3 = st.columns(3)
+with status_col_1:
+    st.markdown(
+        f"""<div class="ddr-status"><strong>LLM Mode</strong><span>{llm_status}<br>{llm_detail}</span></div>""",
+        unsafe_allow_html=True,
+    )
+with status_col_2:
+    st.markdown(
+        """<div class="ddr-status"><strong>Evidence Handling</strong><span>Text extraction, image filtering, and output ZIP packaging</span></div>""",
+        unsafe_allow_html=True,
+    )
+with status_col_3:
+    st.markdown(
+        """<div class="ddr-status"><strong>Report Structure</strong><span>Summary, observations, root cause, severity, actions, and missing data</span></div>""",
+        unsafe_allow_html=True,
+    )
 
 with st.sidebar:
     st.header("Settings")
     max_images_per_page = st.slider("Images per page", min_value=1, max_value=8, value=4)
     max_total_images = st.slider("Maximum images per document", min_value=10, max_value=160, value=80, step=10)
-    has_groq_key = bool(os.getenv("GROQ_API_KEY"))
-    has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
     if has_groq_key:
-        st.info("Groq generation is enabled.")
+        st.success("Groq generation is enabled.")
     elif has_openai_key:
-        st.info("OpenAI generation is enabled.")
+        st.success("OpenAI generation is enabled.")
     else:
         st.info("No LLM key found. The app will create a rule-based DDR and prompt.")
 
-inspection_upload = st.file_uploader("Inspection Report PDF", type=["pdf"])
-thermal_upload = st.file_uploader("Thermal Report PDF", type=["pdf"])
+st.markdown('<div class="ddr-section-title">Source Documents</div>', unsafe_allow_html=True)
+upload_col_1, upload_col_2 = st.columns(2)
+with upload_col_1:
+    inspection_upload = st.file_uploader("Inspection Report PDF", type=["pdf"])
+    if inspection_upload:
+        st.caption(f"Selected: {inspection_upload.name}")
+with upload_col_2:
+    thermal_upload = st.file_uploader("Thermal Report PDF", type=["pdf"])
+    if thermal_upload:
+        st.caption(f"Selected: {thermal_upload.name}")
 
-if st.button("Generate DDR", type="primary", disabled=not inspection_upload or not thermal_upload):
+button_col, hint_col = st.columns([1, 2])
+with button_col:
+    generate_clicked = st.button("Generate DDR", type="primary", disabled=not inspection_upload or not thermal_upload, use_container_width=True)
+with hint_col:
+    if not inspection_upload or not thermal_upload:
+        st.caption("Upload both PDFs to enable report generation.")
+    else:
+        st.caption("Ready to extract evidence and generate the DDR.")
+
+if generate_clicked:
     with st.spinner("Extracting report text, filtering images, and building the DDR..."):
         with tempfile.TemporaryDirectory() as temp_dir:
             work_dir = Path(temp_dir)
@@ -114,15 +297,16 @@ if st.button("Generate DDR", type="primary", disabled=not inspection_upload or n
             st.session_state["images"] = collect_images(output_dir)
 
 if "report" in st.session_state:
-    st.success("DDR output generated.")
+    st.success("DDR output generated successfully.")
 
     tab_report, tab_images, tab_prompt, tab_download = st.tabs(["Report", "Evidence Images", "Prompt", "Download"])
 
     with tab_report:
+        st.markdown('<div class="ddr-section-title">Generated Report</div>', unsafe_allow_html=True)
         st.markdown(st.session_state["report"])
         if st.session_state.get("images"):
             st.divider()
-            st.subheader("Evidence Images")
+            st.markdown('<div class="ddr-section-title">Evidence Preview</div>', unsafe_allow_html=True)
             st.caption("Images are extracted from the uploaded PDFs and included in the output ZIP.")
             for image in st.session_state["images"][:12]:
                 st.image(image["bytes"], caption=image["name"], use_container_width=True)

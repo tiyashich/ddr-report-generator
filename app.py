@@ -30,11 +30,16 @@ def make_zip(output_dir: Path) -> Path:
 
 
 def configure_api_key() -> None:
-    api_key = st.secrets.get("OPENAI_API_KEY", None)
+    try:
+        api_key = st.secrets.get("OPENAI_API_KEY", None)
+        model = st.secrets.get("OPENAI_MODEL", None)
+    except Exception:
+        api_key = None
+        model = None
+
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
 
-    model = st.secrets.get("OPENAI_MODEL", None)
     if model:
         os.environ["OPENAI_MODEL"] = model
 

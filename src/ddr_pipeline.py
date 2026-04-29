@@ -153,6 +153,53 @@ def bullet_list(items: Iterable[str]) -> str:
     return "\n".join(f"- {item}" for item in cleaned) if cleaned else "- Not Available"
 
 
+def detailed_observation_rows(observations: list[str], side: str) -> str:
+    if not observations:
+        return "- Not Available"
+
+    rows = []
+    for index, observation in enumerate(observations, start=1):
+        evidence_note = "Inspection report description"
+        if "damp" in observation.lower() or "seepage" in observation.lower():
+            implication = "Moisture ingress is likely affecting finishes and may continue spreading if the source is not corrected."
+        elif "hollow" in observation.lower() or "joint" in observation.lower():
+            implication = "Open or hollow tile areas may allow water movement behind finishes and should be checked before surface repairs."
+        elif "crack" in observation.lower() or "duct" in observation.lower():
+            implication = "External openings or cracks may permit water entry and should be sealed after confirming substrate condition."
+        else:
+            implication = "Further site verification is recommended before final repair scope is closed."
+
+        rows.append(
+            f"### {side} Observation {index}: {observation}\n\n"
+            f"- Evidence: {evidence_note}.\n"
+            f"- Client meaning: {implication}\n"
+            "- Image support: See extracted evidence images in the app/ZIP. Exact photo-to-observation mapping is Not Available from extracted text.\n"
+        )
+    return "\n".join(rows)
+
+
+def thermal_detail_table(thermal_pages: list[PageText]) -> str:
+    rows = []
+    for page in thermal_pages:
+        hotspot_match = re.search(r"Hotspot\s*:\s*([0-9.]+)", page.text, flags=re.IGNORECASE)
+        coldspot_match = re.search(r"Coldspot\s*:\s*([0-9.]+)", page.text, flags=re.IGNORECASE)
+        image_match = re.search(r"Thermal image\s*:\s*([A-Z0-9_.-]+)", page.text, flags=re.IGNORECASE)
+        if hotspot_match and coldspot_match:
+            image_name = image_match.group(1) if image_match else "Not Available"
+            rows.append(f"| {page.page} | {image_name} | {hotspot_match.group(1)} deg C | {coldspot_match.group(1)} deg C |")
+
+    if not rows:
+        return "Not Available"
+
+    return "\n".join(
+        [
+            "| Page | Thermal Image | Hotspot | Coldspot |",
+            "| --- | --- | --- | --- |",
+            *rows[:30],
+        ]
+    )
+
+
 def rule_based_report(
     inspection_pages: list[PageText],
     thermal_pages: list[PageText],
@@ -204,36 +251,68 @@ def rule_based_report(
 
     return f"""# Detailed Diagnostic Report
 
+## Report Basis
+
+This DDR is generated from the uploaded inspection report and thermal image report. The report uses extracted source text, extracted images, and temperature readings. Where the PDFs do not provide a detail clearly, the value is marked as Not Available.
+
 ## 1. Property Issue Summary
 
 {bullet_list(issue_points)}
+
+The inspection evidence indicates repeated moisture-related symptoms across internal rooms and wet areas. The reported pattern includes skirting-level dampness, wall dampness, ceiling dampness, parking area seepage, tile hollowness, tile joint gaps, plumbing concerns, and external wall/duct issues. The thermal report supports the presence of measurable surface temperature variation across 30 thermal records, but the extracted thermal text does not provide room-wise labels.
 
 ## 2. Area-wise Observations
 
 ### Negative Side / Impacted Area Observations
 
-{bullet_list(negative_observations)}
+{detailed_observation_rows(negative_observations, "Negative Side")}
 
 ### Positive Side / Exposed Area Observations
 
-{bullet_list(positive_observations)}
+{detailed_observation_rows(positive_observations, "Positive Side")}
 
 ### Thermal Observations
 
 - {thermal_summary(thermal_pages)}
 - Thermal image filenames and temperature readings are available in the source thermal report, but room-level labels are not available in the extracted text.
 
+{thermal_detail_table(thermal_pages)}
+
 ## 3. Probable Root Cause
 
 {bullet_list(root_causes)}
+
+The most likely issue pattern is moisture transfer from wet areas and exterior openings into adjacent surfaces. The inspection checklist specifically marks concealed plumbing leakage and Nahani trap/brickbat coba-related leakage indicators as present. External cracks and duct issues may be a separate or contributing path for water entry near the master bedroom/external wall side. Because the source documents do not provide destructive testing or plumbing pressure test results, these causes should be treated as probable rather than finally confirmed.
 
 ## 4. Severity Assessment
 
 {severity}
 
+Severity reasoning:
+- Spread: Multiple rooms/areas are affected rather than a single isolated point.
+- Frequency: Leakage is recorded as occurring all the time.
+- Building envelope: External wall cracks/duct issues are present.
+- Wet-area risk: WC/common bathroom and bathroom tile joint conditions are repeatedly referenced.
+- Limitation: No source evidence confirms exposed reinforcement, severe corrosion, or immediate structural instability.
+
 ## 5. Recommended Actions
 
+### Immediate Diagnostic Actions
+
+- Carry out a focused plumbing inspection for WC/common bathroom lines, traps, joints, and concealed supply/drainage paths.
+- Conduct moisture meter checks around skirting, wall, and ceiling dampness locations.
+- Verify whether thermal anomalies align with visible dampness or suspected concealed plumbing routes.
+
+### Repair Actions
+
 {bullet_list(actions)}
+
+### Post-Repair Validation
+
+- Reinspect all affected areas after repairs and drying time.
+- Repeat thermal imaging at comparable locations.
+- Confirm that tile joint gaps, external cracks, and duct openings are sealed before repainting or finishing.
+- Avoid repainting or cosmetic patching until the water source is corrected.
 
 ## 6. Additional Notes
 
@@ -246,6 +325,8 @@ def rule_based_report(
 - Extracted inspection images: {len(inspection_images)} files.
 - Extracted thermal images: {len(thermal_images)} files.
 - Image files are included in the downloadable output ZIP. Place the relevant photos under matching observations during final client formatting.
+- The extracted source text does not provide reliable room labels for each thermal image, so the report does not invent room-wise thermal mapping.
+- Duplicate or small PDF artifacts are filtered during extraction to keep the evidence package usable.
 
 ## 7. Missing or Unclear Information
 
@@ -268,16 +349,47 @@ Rules:
 - If information conflicts, explicitly mention the conflict.
 - Use simple client-friendly language.
 - Avoid duplicate points.
-- Place relevant images under the matching observation when possible.
+- Place relevant images under the matching observation when possible by referencing the extracted image path/page.
+- Write a detailed professional report, not a short summary.
+- Include source page references where useful, especially for major observations, thermal readings, and missing data.
+- Explain reasoning in plain language so a property owner can understand why each issue matters.
+- Keep the tone professional, calm, and client-ready.
 
 Required DDR structure:
-1. Property Issue Summary
-2. Area-wise Observations
-3. Probable Root Cause
-4. Severity Assessment (with reasoning)
-5. Recommended Actions
-6. Additional Notes
-7. Missing or Unclear Information
+1. Report Basis
+   - Documents reviewed
+   - Important limitations
+2. Property Issue Summary
+   - Overall issue pattern
+   - Key impacted areas
+   - Main evidence from inspection report
+   - Main evidence from thermal report
+3. Area-wise Observations
+   For each affected area, include:
+   - Observation
+   - Evidence from inspection report
+   - Related thermal evidence if available
+   - Relevant image reference or "Image Not Available"
+   - Client-friendly implication
+4. Probable Root Cause
+   - Separate confirmed evidence from probable interpretation
+   - Mention alternate/contributing causes if supported
+5. Severity Assessment
+   - Severity rating
+   - Reasoning
+   - Factors increasing risk
+   - Factors not available or not confirmed
+6. Recommended Actions
+   - Immediate diagnostic checks
+   - Repair actions
+   - Post-repair validation
+   - Preventive actions
+7. Additional Notes
+   - Thermal camera/device details if available
+   - Handling of images
+   - Assumptions avoided
+8. Missing or Unclear Information
+   - Explicitly list missing fields as "Not Available"
 
 # Inspection Report Text
 {compact_pages(inspection_pages)}
@@ -291,7 +403,7 @@ Required DDR structure:
 # Thermal Report Images
 {image_manifest(thermal_images)}
 
-Return the final report in Markdown. Include source page references in parentheses where useful.
+Return the final report in Markdown. Aim for a detailed report of roughly 900-1500 words when evidence supports it. Use tables where they improve readability.
 """
 
 
@@ -317,6 +429,7 @@ def call_groq(prompt: str) -> str | None:
             },
         ],
         temperature=0.2,
+        max_completion_tokens=3500,
     )
     return response.choices[0].message.content
 

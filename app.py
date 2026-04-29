@@ -74,6 +74,10 @@ st.markdown(
 
     .ddr-hero-text {
         min-width: 0;
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
     }
 
     .ddr-kicker {
@@ -86,12 +90,12 @@ st.markdown(
     }
 
     .ddr-title {
-        color: #f6b33f;
+        color: #ffffff;
         font-size: 2.25rem;
         line-height: 1.12;
         font-weight: 760;
         margin: 0;
-        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
     }
 
     .ddr-subtitle {

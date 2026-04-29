@@ -7,6 +7,35 @@ Starter workflow for the AI Generalist assignment: read an inspection report PDF
 - **Antigravity**: edit/refine this repository, run the pipeline locally, and ask the agent to improve extraction or report formatting.
 - **GitHub**: host the final code, README, screenshots, sample outputs, and commit history.
 - **Kaggle Python Notebook**: run the actual demo in a reproducible cloud environment using the supplied PDFs as notebook input data.
+- **Streamlit Community Cloud**: deploy a simple live app from this GitHub repository.
+
+## Streamlit App
+
+Run locally:
+
+```bash
+streamlit run app.py
+```
+
+Deploy:
+
+1. Push this repo to GitHub.
+2. Go to [Streamlit Community Cloud](https://share.streamlit.io/).
+3. Create a new app from the GitHub repo.
+4. Set the main file path to:
+
+```text
+app.py
+```
+
+5. Optional: add secrets for automatic LLM report generation:
+
+```toml
+OPENAI_API_KEY = "your-api-key"
+OPENAI_MODEL = "gpt-4.1-mini"
+```
+
+Without secrets, the deployed app still extracts text/images and creates the final prompt plus a draft report shell.
 
 ## Kaggle Steps
 

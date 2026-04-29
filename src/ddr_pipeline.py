@@ -295,6 +295,32 @@ Return the final report in Markdown. Include source page references in parenthes
 """
 
 
+def call_groq(prompt: str) -> str | None:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return None
+
+    from groq import Groq
+
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    client = Groq(api_key=api_key)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You generate client-ready property diagnostic reports using only provided source evidence.",
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        temperature=0.2,
+    )
+    return response.choices[0].message.content
+
+
 def call_openai(prompt: str) -> str | None:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -354,7 +380,7 @@ def run(
     prompt = build_prompt(inspection_pages, thermal_pages, inspection_images, thermal_images)
     (output_dir / "llm_prompt.md").write_text(prompt, encoding="utf-8")
 
-    generated_report = call_openai(prompt)
+    generated_report = call_groq(prompt) or call_openai(prompt)
     report = generated_report or fallback_report(
         inspection_pages,
         thermal_pages,

@@ -28,14 +28,21 @@ Deploy:
 app.py
 ```
 
-5. Optional: add secrets for automatic LLM report generation:
+5. Optional: add secrets for automatic LLM report generation with Groq:
+
+```toml
+GROQ_API_KEY = "your-groq-api-key"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+```
+
+Or use OpenAI:
 
 ```toml
 OPENAI_API_KEY = "your-api-key"
 OPENAI_MODEL = "gpt-4.1-mini"
 ```
 
-Without secrets, the deployed app still extracts text/images and creates the final prompt plus a draft report shell.
+Without secrets, the deployed app still extracts text/images and creates the final prompt plus a rule-based DDR.
 
 ## Kaggle Steps
 
@@ -61,7 +68,7 @@ Without secrets, the deployed app still extracts text/images and creates the fin
   --max-total-images 80
 ```
 
-6. Optional: set `OPENAI_API_KEY` and `OPENAI_MODEL` as Kaggle secrets/environment variables to generate the final report automatically. Without a key, the script still creates extracted text, extracted images, a structured prompt, and a draft report shell.
+6. Optional: set `GROQ_API_KEY` and `GROQ_MODEL` as Kaggle secrets/environment variables to generate the final report automatically. You can also use `OPENAI_API_KEY` and `OPENAI_MODEL`. Without a key, the script still creates extracted text, extracted images, a structured prompt, and a rule-based DDR.
 
 ## Output Files
 

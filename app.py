@@ -33,15 +33,25 @@ def configure_api_key() -> None:
     try:
         api_key = st.secrets.get("OPENAI_API_KEY", None)
         model = st.secrets.get("OPENAI_MODEL", None)
+        groq_api_key = st.secrets.get("GROQ_API_KEY", None)
+        groq_model = st.secrets.get("GROQ_MODEL", None)
     except Exception:
         api_key = None
         model = None
+        groq_api_key = None
+        groq_model = None
 
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
 
     if model:
         os.environ["OPENAI_MODEL"] = model
+
+    if groq_api_key:
+        os.environ["GROQ_API_KEY"] = groq_api_key
+
+    if groq_model:
+        os.environ["GROQ_MODEL"] = groq_model
 
 
 configure_api_key()
@@ -53,8 +63,14 @@ with st.sidebar:
     st.header("Settings")
     max_images_per_page = st.slider("Images per page", min_value=1, max_value=8, value=4)
     max_total_images = st.slider("Maximum images per document", min_value=10, max_value=160, value=80, step=10)
-    has_api_key = bool(os.getenv("OPENAI_API_KEY"))
-    st.info("OpenAI generation is enabled." if has_api_key else "No OpenAI key found. The app will create a draft shell and prompt.")
+    has_groq_key = bool(os.getenv("GROQ_API_KEY"))
+    has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
+    if has_groq_key:
+        st.info("Groq generation is enabled.")
+    elif has_openai_key:
+        st.info("OpenAI generation is enabled.")
+    else:
+        st.info("No LLM key found. The app will create a rule-based DDR and prompt.")
 
 inspection_upload = st.file_uploader("Inspection Report PDF", type=["pdf"])
 thermal_upload = st.file_uploader("Thermal Report PDF", type=["pdf"])

@@ -1,4 +1,5 @@
 import os
+import base64
 import shutil
 import tempfile
 from pathlib import Path
@@ -8,15 +9,27 @@ import streamlit as st
 from src.ddr_pipeline import run
 
 
+APP_DIR = Path(__file__).parent
+LOGO_PATH = APP_DIR / "assets" / "urbanroof-logo.webp"
+
 st.set_page_config(
     page_title="DDR Report Generator",
     layout="wide",
 )
 
+
+def image_data_uri(path: Path) -> str:
+    if not path.exists():
+        return ""
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/webp;base64,{encoded}"
+
+
 st.markdown(
     """
     <style>
     :root {
+        --ddr-brand: #283842;
         --ddr-ink: #17212b;
         --ddr-muted: #5c6975;
         --ddr-line: #dbe3ea;
@@ -37,13 +50,34 @@ st.markdown(
     }
 
     .ddr-hero {
-        border-bottom: 1px solid var(--ddr-line);
-        padding: 0 0 1.2rem 0;
+        background: var(--ddr-brand);
+        border: 1px solid #344954;
+        border-radius: 8px;
+        padding: 1.15rem 1.25rem;
         margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+    }
+
+    .ddr-logo-wrap {
+        flex: 0 0 auto;
+        width: 190px;
+        max-width: 38vw;
+    }
+
+    .ddr-logo {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .ddr-hero-text {
+        min-width: 0;
     }
 
     .ddr-kicker {
-        color: var(--ddr-accent);
+        color: #f6b33f;
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.06em;
@@ -52,7 +86,7 @@ st.markdown(
     }
 
     .ddr-title {
-        color: var(--ddr-ink);
+        color: #ffffff;
         font-size: 2.25rem;
         line-height: 1.12;
         font-weight: 760;
@@ -60,10 +94,26 @@ st.markdown(
     }
 
     .ddr-subtitle {
-        color: var(--ddr-muted);
+        color: #d7e0e6;
         font-size: 1.02rem;
         max-width: 760px;
         margin-top: 0.65rem;
+    }
+
+    @media (max-width: 720px) {
+        .ddr-hero {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .ddr-logo-wrap {
+            width: 160px;
+            max-width: 70vw;
+        }
+
+        .ddr-title {
+            font-size: 1.8rem;
+        }
     }
 
     .ddr-status {
@@ -196,6 +246,7 @@ def configure_api_key() -> None:
 
 
 configure_api_key()
+logo_data_uri = image_data_uri(LOGO_PATH)
 
 has_groq_key = bool(os.getenv("GROQ_API_KEY"))
 has_openai_key = bool(os.getenv("OPENAI_API_KEY"))
@@ -211,12 +262,17 @@ else:
     llm_detail = "Add Groq or OpenAI secrets for model-written output"
 
 st.markdown(
-    """
+    f"""
     <div class="ddr-hero">
-        <div class="ddr-kicker">Applied AI Builder</div>
-        <h1 class="ddr-title">DDR Report Generator</h1>
-        <div class="ddr-subtitle">
-            Convert an inspection PDF and a thermal PDF into a structured Detailed Diagnostic Report with extracted evidence.
+        <div class="ddr-logo-wrap">
+            {'<img class="ddr-logo" src="' + logo_data_uri + '" alt="UrbanRoof logo">' if logo_data_uri else ''}
+        </div>
+        <div class="ddr-hero-text">
+            <div class="ddr-kicker">Applied AI Builder</div>
+            <h1 class="ddr-title">DDR Report Generator</h1>
+            <div class="ddr-subtitle">
+                Convert an inspection PDF and a thermal PDF into a structured Detailed Diagnostic Report with extracted evidence.
+            </div>
         </div>
     </div>
     """,

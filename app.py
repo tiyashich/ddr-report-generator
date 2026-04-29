@@ -1,9 +1,12 @@
 import os
 import base64
+import json
+import re
 import shutil
 import tempfile
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 from src.ddr_pipeline import run
@@ -226,6 +229,34 @@ def collect_images(output_dir: Path) -> list[dict[str, object]]:
     return images
 
 
+def collect_thermal_readings(output_dir: Path) -> pd.DataFrame:
+    thermal_text_path = output_dir / "extracted" / "thermal_text.json"
+    if not thermal_text_path.exists():
+        return pd.DataFrame()
+
+    pages = json.loads(thermal_text_path.read_text(encoding="utf-8"))
+    rows = []
+    for page in pages:
+        text = page.get("text", "")
+        hotspot_match = re.search(r"Hotspot\s*:\s*([0-9.]+)", text, flags=re.IGNORECASE)
+        coldspot_match = re.search(r"Coldspot\s*:\s*([0-9.]+)", text, flags=re.IGNORECASE)
+        image_match = re.search(r"Thermal image\s*:\s*([A-Z0-9_.-]+)", text, flags=re.IGNORECASE)
+        if hotspot_match and coldspot_match:
+            hotspot = float(hotspot_match.group(1))
+            coldspot = float(coldspot_match.group(1))
+            rows.append(
+                {
+                    "Page": int(page.get("page", len(rows) + 1)),
+                    "Thermal Image": image_match.group(1) if image_match else "Not Available",
+                    "Hotspot": hotspot,
+                    "Coldspot": coldspot,
+                    "Delta": round(hotspot - coldspot, 2),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
 def configure_api_key() -> None:
     try:
         api_key = st.secrets.get("OPENAI_API_KEY", None)
@@ -357,11 +388,14 @@ if generate_clicked:
             st.session_state["prompt"] = read_text(prompt_path)
             st.session_state["zip_bytes"] = zip_path.read_bytes()
             st.session_state["images"] = collect_images(output_dir)
+            st.session_state["thermal_df"] = collect_thermal_readings(output_dir)
 
 if "report" in st.session_state:
     st.success("DDR output generated successfully.")
 
-    tab_report, tab_images, tab_prompt, tab_download = st.tabs(["Report", "Evidence Images", "Prompt", "Download"])
+    tab_report, tab_charts, tab_images, tab_prompt, tab_download = st.tabs(
+        ["Report", "Thermal Charts", "Evidence Images", "Prompt", "Download"]
+    )
 
     with tab_report:
         st.markdown('<div class="ddr-section-title">Generated Report</div>', unsafe_allow_html=True)
@@ -372,6 +406,26 @@ if "report" in st.session_state:
             st.caption("Images are extracted from the uploaded PDFs and included in the output ZIP.")
             for image in st.session_state["images"][:12]:
                 st.image(image["bytes"], caption=image["name"], use_container_width=True)
+
+    with tab_charts:
+        thermal_df = st.session_state.get("thermal_df", pd.DataFrame())
+        if thermal_df.empty:
+            st.warning("Thermal chart data is Not Available")
+        else:
+            metric_col_1, metric_col_2, metric_col_3 = st.columns(3)
+            metric_col_1.metric("Thermal Records", len(thermal_df))
+            metric_col_2.metric("Max Hotspot", f"{thermal_df['Hotspot'].max():.1f} deg C")
+            metric_col_3.metric("Max Delta", f"{thermal_df['Delta'].max():.1f} deg C")
+
+            chart_df = thermal_df.set_index("Page")[["Hotspot", "Coldspot"]]
+            st.markdown('<div class="ddr-section-title">Hotspot vs Coldspot Trend</div>', unsafe_allow_html=True)
+            st.line_chart(chart_df)
+
+            st.markdown('<div class="ddr-section-title">Temperature Difference by Thermal Record</div>', unsafe_allow_html=True)
+            st.bar_chart(thermal_df.set_index("Page")["Delta"])
+
+            st.markdown('<div class="ddr-section-title">Thermal Reading Table</div>', unsafe_allow_html=True)
+            st.dataframe(thermal_df, use_container_width=True, hide_index=True)
 
     with tab_images:
         images = st.session_state.get("images", [])

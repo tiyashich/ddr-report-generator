@@ -376,7 +376,7 @@ with status_col_3:
         unsafe_allow_html=True,
     )
 
-st.markdown('<div class="ddr-watermark">Prepared by Tiyas</div>', unsafe_allow_html=True)
+st.markdown('<div class="ddr-watermark">Prepared By: Tiyashi Chatterjee</div>', unsafe_allow_html=True)
 
 st.markdown(
     """

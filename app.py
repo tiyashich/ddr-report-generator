@@ -89,13 +89,14 @@ st.markdown(
         margin-bottom: 0.35rem;
     }
 
-    .ddr-title {
+    .ddr-hero .ddr-title {
         color: #ffffff;
         font-size: 2.25rem;
         line-height: 1.12;
         font-weight: 760;
         margin: 0;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+        text-shadow: none;
+        -webkit-text-fill-color: #ffffff;
     }
 
     .ddr-subtitle {
@@ -274,7 +275,7 @@ st.markdown(
         </div>
         <div class="ddr-hero-text">
             <div class="ddr-kicker">Applied AI Builder</div>
-            <h1 class="ddr-title">DDR Report Generator</h1>
+            <div class="ddr-title">DDR Report Generator</div>
             <div class="ddr-subtitle">
                 Convert an inspection PDF and a thermal PDF into a structured Detailed Diagnostic Report with extracted evidence.
             </div>

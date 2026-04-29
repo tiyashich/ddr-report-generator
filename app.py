@@ -452,8 +452,8 @@ if generate_clicked:
 if "report" in st.session_state:
     st.success("DDR output generated successfully.")
 
-    tab_report, tab_charts, tab_images, tab_prompt, tab_download = st.tabs(
-        ["Report", "Thermal Charts", "Evidence Images", "Prompt", "Download"]
+    tab_report, tab_charts, tab_images, tab_download = st.tabs(
+        ["Report", "Thermal Charts", "Evidence Images", "Download"]
     )
 
     with tab_report:
@@ -496,9 +496,6 @@ if "report" in st.session_state:
             for index, image in enumerate(images):
                 with columns[index % 3]:
                     st.image(image["bytes"], caption=image["name"], use_container_width=True)
-
-    with tab_prompt:
-        st.text_area("LLM prompt", st.session_state["prompt"], height=420)
 
     with tab_download:
         st.download_button(

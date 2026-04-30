@@ -429,7 +429,7 @@ def call_groq(prompt: str) -> str | None:
             },
         ],
         temperature=0.2,
-        max_completion_tokens=3500,
+        max_tokens=3500,
     )
     return response.choices[0].message.content
 

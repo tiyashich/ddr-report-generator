@@ -433,7 +433,7 @@ def call_groq(prompt: str) -> str | None:
                 },
             ],
             temperature=0.2,
-            max_completion_tokens=3500,
+            max_completion_tokens=5000,
         )
         return response.choices[0].message.content
     except Exception as exc:

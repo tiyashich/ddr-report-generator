@@ -10,6 +10,9 @@ from typing import Iterable
 import fitz
 
 
+LLM_ERRORS: list[str] = []
+
+
 @dataclass
 class PageText:
     page: int
@@ -415,23 +418,27 @@ def call_groq(prompt: str) -> str | None:
     from groq import Groq
 
     model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You generate client-ready property diagnostic reports using only provided source evidence.",
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        temperature=0.2,
-        max_completion_tokens=3500,
-    )
-    return response.choices[0].message.content
+    try:
+        client = Groq(api_key=api_key)
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You generate client-ready property diagnostic reports using only provided source evidence.",
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperature=0.2,
+            max_completion_tokens=3500,
+        )
+        return response.choices[0].message.content
+    except Exception as exc:
+        LLM_ERRORS.append(f"Groq generation failed for model {model}: {type(exc).__name__}")
+        return None
 
 
 def call_openai(prompt: str) -> str | None:
@@ -439,15 +446,19 @@ def call_openai(prompt: str) -> str | None:
     if not api_key:
         return None
 
-    from openai import OpenAI
-
     model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-    client = OpenAI(api_key=api_key)
-    response = client.responses.create(
-        model=model,
-        input=prompt,
-    )
-    return response.output_text
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key)
+        response = client.responses.create(
+            model=model,
+            input=prompt,
+        )
+        return response.output_text
+    except Exception as exc:
+        LLM_ERRORS.append(f"OpenAI generation failed for model {model}: {type(exc).__name__}")
+        return None
 
 
 def fallback_report(
@@ -466,6 +477,7 @@ def run(
     max_images_per_page: int,
     max_total_images: int,
 ) -> None:
+    LLM_ERRORS.clear()
     ensure_dir(output_dir)
     extracted_dir = ensure_dir(output_dir / "extracted")
     image_dir = ensure_dir(output_dir / "images")
@@ -494,11 +506,20 @@ def run(
     (output_dir / "llm_prompt.md").write_text(prompt, encoding="utf-8")
 
     generated_report = call_groq(prompt) or call_openai(prompt)
+    provider = "Groq" if generated_report and os.getenv("GROQ_API_KEY") and not LLM_ERRORS else "OpenAI" if generated_report else "Rule-based fallback"
     report = generated_report or fallback_report(
         inspection_pages,
         thermal_pages,
         inspection_images,
         thermal_images,
+    )
+    write_json(
+        extracted_dir / "generation_status.json",
+        {
+            "provider": provider,
+            "llm_errors": LLM_ERRORS,
+            "used_fallback": generated_report is None,
+        },
     )
     (output_dir / "DDR_Report.md").write_text(report, encoding="utf-8")
 

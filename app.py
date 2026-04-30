@@ -301,6 +301,13 @@ def collect_thermal_readings(output_dir: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def collect_generation_status(output_dir: Path) -> dict[str, object]:
+    status_path = output_dir / "extracted" / "generation_status.json"
+    if not status_path.exists():
+        return {"provider": "Not Available", "llm_errors": [], "used_fallback": True}
+    return json.loads(status_path.read_text(encoding="utf-8"))
+
+
 def configure_api_key() -> None:
     try:
         api_key = st.secrets.get("OPENAI_API_KEY", None)
@@ -449,9 +456,18 @@ if generate_clicked:
             st.session_state["zip_bytes"] = zip_path.read_bytes()
             st.session_state["images"] = collect_images(output_dir)
             st.session_state["thermal_df"] = collect_thermal_readings(output_dir)
+            st.session_state["generation_status"] = collect_generation_status(output_dir)
 
 if "report" in st.session_state:
     st.success("DDR output generated successfully.")
+    generation_status = st.session_state.get("generation_status", {})
+    if generation_status.get("used_fallback"):
+        st.warning(
+            "The LLM call was unavailable, so the app generated a rule-based DDR fallback. "
+            "The extracted evidence, images, charts, and downloadable ZIP are still available."
+        )
+    elif generation_status.get("provider"):
+        st.info(f"Report generated using: {generation_status.get('provider')}")
 
     tab_report, tab_charts, tab_images, tab_download = st.tabs(
         ["Report", "Thermal Charts", "Evidence Images", "Download"]
